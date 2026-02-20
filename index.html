@@ -451,13 +451,14 @@ body {
 }
 .popup-btn-maps:hover { border-color:var(--terra); color:var(--terra); }
 
-/* Social: Check-in + Upvote */
+/* Social: Check-in + Thumbs */
 .social-row {
-  display:flex; gap:0.5rem; margin-top:0.5rem; align-items:center;
+  display:flex; gap:0.5rem; margin-top:0.75rem; padding-top:0.65rem;
+  border-top:1px solid var(--sand); align-items:center;
 }
 .social-btn {
   display:inline-flex; align-items:center; gap:0.3rem;
-  padding:0.35rem 0.6rem; border-radius:99px;
+  padding:0.35rem 0.65rem; border-radius:99px;
   font-family:'DM Sans',sans-serif; font-size:0.7rem; font-weight:600;
   cursor:pointer; transition:all 0.2s; border:1.5px solid var(--sand);
   background:var(--white); color:var(--text-2);
@@ -467,7 +468,8 @@ body {
 .social-btn .social-icon { font-size:0.85rem; line-height:1; }
 .social-btn .social-count { font-variant-numeric:tabular-nums; }
 .social-checkin.active { background:var(--terra); border-color:var(--terra); }
-.social-upvote.active { background:var(--brass); border-color:var(--brass); }
+.social-thumb-up.active { background:#2D7A45; border-color:#2D7A45; }
+.social-thumb-down.active { background:#9A3A3A; border-color:#9A3A3A; }
 .social-people {
   font-size:0.68rem; color:var(--text-3); line-height:1.3;
   margin-left:0.25rem;
@@ -489,7 +491,8 @@ body {
 .modal-social-btn:hover { border-color:var(--terra); color:var(--terra); }
 .modal-social-btn.active { background:var(--terra); border-color:var(--terra); color:white; }
 .modal-social-btn .social-icon { font-size:1rem; }
-.modal-social-btn.social-upvote.active { background:var(--brass); border-color:var(--brass); }
+.modal-social-btn.social-thumb-up.active { background:#2D7A45; border-color:#2D7A45; }
+.modal-social-btn.social-thumb-down.active { background:#9A3A3A; border-color:#9A3A3A; }
 .modal-social-people {
   font-size:0.78rem; color:var(--text-3); flex:1;
 }
@@ -1185,10 +1188,13 @@ body:has(.add-overlay.open) { overflow:hidden; }
 
     <div class="modal-social-row" id="modalSocialRow">
       <button class="modal-social-btn social-checkin" id="modalCheckinBtn" onclick="toggleCheckin(currentModalId)">
-        <span class="social-icon">📍</span><span class="social-label">Been Here</span><span class="social-count" id="modalCheckinCount">0</span>
+        <span class="social-icon">📍</span><span class="social-label">Been Here</span><span class="social-count" id="modalCheckinCount"></span>
       </button>
-      <button class="modal-social-btn social-upvote" id="modalUpvoteBtn" onclick="toggleUpvote(currentModalId)">
-        <span class="social-icon">▲</span><span class="social-count" id="modalUpvoteCount">0</span>
+      <button class="modal-social-btn social-thumb-up" id="modalThumbUpBtn" onclick="toggleThumb(currentModalId,'up')">
+        <span class="social-icon">👍</span><span class="social-count" id="modalThumbUpCount"></span>
+      </button>
+      <button class="modal-social-btn social-thumb-down" id="modalThumbDownBtn" onclick="toggleThumb(currentModalId,'down')">
+        <span class="social-icon">👎</span><span class="social-count" id="modalThumbDownCount"></span>
       </button>
       <span class="modal-social-people" id="modalCheckinPeople"></span>
     </div>
@@ -1745,10 +1751,13 @@ function showMapPopup(venue) {
       ${venue.userNote ? `<div class="popup-note">${venue.userNote}</div>` : ''}
       <div class="social-row" id="popupSocial-${venue.id}">
         <button class="social-btn social-checkin" onclick="event.stopPropagation();toggleCheckin('${venue.id}')" data-venue="${venue.id}">
-          <span class="social-icon">📍</span><span class="social-label">Been Here</span><span class="social-count" data-checkin-count="${venue.id}">0</span>
+          <span class="social-icon">📍</span><span class="social-label">Been Here</span><span class="social-count" data-checkin-count="${venue.id}"></span>
         </button>
-        <button class="social-btn social-upvote" onclick="event.stopPropagation();toggleUpvote('${venue.id}')" data-venue="${venue.id}">
-          <span class="social-icon">▲</span><span class="social-count" data-upvote-count="${venue.id}">0</span>
+        <button class="social-btn social-thumb-up" onclick="event.stopPropagation();toggleThumb('${venue.id}','up')" data-venue="${venue.id}">
+          <span class="social-icon">👍</span><span class="social-count" data-thumb-up-count="${venue.id}"></span>
+        </button>
+        <button class="social-btn social-thumb-down" onclick="event.stopPropagation();toggleThumb('${venue.id}','down')" data-venue="${venue.id}">
+          <span class="social-icon">👎</span><span class="social-count" data-thumb-down-count="${venue.id}"></span>
         </button>
         <span class="social-people" data-checkin-people="${venue.id}"></span>
       </div>
@@ -2342,9 +2351,9 @@ const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
 
 let sb = null;  // Supabase client instance (named 'sb' to avoid conflict with CDN global)
 let currentProfile = null;
-let venueStats = {};       // { venueId: { checkins: N, upvotes: N } }
+let venueStats = {};       // { venueId: { checkins: N, thumbs_up: N, thumbs_down: N } }
 let myCheckins = new Set(); // venue IDs I've checked in to
-let myUpvotes = new Set();  // venue IDs I've upvoted
+let myThumbs = {};          // { venueId: 'up' | 'down' }
 
 async function initSupabase() {
   // Skip if credentials not configured yet
@@ -2387,7 +2396,7 @@ async function initSupabase() {
     // Subscribe to realtime changes
     sb.channel('social')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins' }, handleRealtimeCheckin)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'upvotes' }, handleRealtimeUpvote)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'thumbs' }, handleRealtimeThumb)
       .subscribe();
 
     console.log('[recs] Supabase initialized, profile:', currentProfile.id);
@@ -2401,7 +2410,11 @@ async function loadVenueStats() {
   const { data: stats } = await sb.from('venue_stats').select('*');
   venueStats = {};
   (stats || []).forEach(s => {
-    venueStats[s.venue_id] = { checkins: s.checkin_count, upvotes: s.upvote_count };
+    venueStats[s.venue_id] = {
+      checkins: s.checkin_count || 0,
+      thumbs_up: s.thumbs_up_count || 0,
+      thumbs_down: s.thumbs_down_count || 0
+    };
   });
 }
 
@@ -2414,11 +2427,12 @@ async function loadMyActions() {
     .eq('profile_id', currentProfile.id);
   myCheckins = new Set((checkins || []).map(c => c.venue_id));
 
-  const { data: upvotes } = await sb
-    .from('upvotes')
-    .select('venue_id')
+  const { data: thumbs } = await sb
+    .from('thumbs')
+    .select('venue_id, direction')
     .eq('profile_id', currentProfile.id);
-  myUpvotes = new Set((upvotes || []).map(u => u.venue_id));
+  myThumbs = {};
+  (thumbs || []).forEach(t => { myThumbs[t.venue_id] = t.direction; });
 }
 
 async function toggleCheckin(venueId) {
@@ -2429,60 +2443,79 @@ async function toggleCheckin(venueId) {
 
   const btn = document.querySelector(`.social-checkin[data-venue="${venueId}"], #modalCheckinBtn`);
 
+  const defaults = { checkins: 0, thumbs_up: 0, thumbs_down: 0 };
+  if (!venueStats[venueId]) venueStats[venueId] = { ...defaults };
+
   if (myCheckins.has(venueId)) {
-    // Remove check-in
     myCheckins.delete(venueId);
     await sb.from('checkins').delete().eq('profile_id', currentProfile.id).eq('venue_id', venueId);
-    if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
-    venueStats[venueId].checkins = Math.max(0, (venueStats[venueId].checkins || 0) - 1);
+    venueStats[venueId].checkins = Math.max(0, venueStats[venueId].checkins - 1);
   } else {
-    // Add check-in
     myCheckins.add(venueId);
     await sb.from('checkins').insert({ profile_id: currentProfile.id, venue_id: venueId });
-    if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
-    venueStats[venueId].checkins = (venueStats[venueId].checkins || 0) + 1;
+    venueStats[venueId].checkins++;
   }
 
   updateSocialUI(venueId);
 }
 
-async function toggleUpvote(venueId) {
+async function toggleThumb(venueId, direction) {
   if (!sb || !currentProfile) {
     showToast('Social features loading...');
     return;
   }
 
-  if (myUpvotes.has(venueId)) {
-    myUpvotes.delete(venueId);
-    await sb.from('upvotes').delete().eq('profile_id', currentProfile.id).eq('venue_id', venueId);
-    if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
-    venueStats[venueId].upvotes = Math.max(0, (venueStats[venueId].upvotes || 0) - 1);
+  const defaults = { checkins: 0, thumbs_up: 0, thumbs_down: 0 };
+  if (!venueStats[venueId]) venueStats[venueId] = { ...defaults };
+
+  const currentThumb = myThumbs[venueId];
+  const countKey = direction === 'up' ? 'thumbs_up' : 'thumbs_down';
+  const oppositeKey = direction === 'up' ? 'thumbs_down' : 'thumbs_up';
+
+  if (currentThumb === direction) {
+    // Remove existing thumb (toggle off)
+    delete myThumbs[venueId];
+    await sb.from('thumbs').delete().eq('profile_id', currentProfile.id).eq('venue_id', venueId);
+    venueStats[venueId][countKey] = Math.max(0, venueStats[venueId][countKey] - 1);
   } else {
-    myUpvotes.add(venueId);
-    await sb.from('upvotes').insert({ profile_id: currentProfile.id, venue_id: venueId });
-    if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
-    venueStats[venueId].upvotes = (venueStats[venueId].upvotes || 0) + 1;
+    if (currentThumb) {
+      // Switching from opposite thumb — decrement old
+      venueStats[venueId][oppositeKey] = Math.max(0, venueStats[venueId][oppositeKey] - 1);
+      // Upsert the thumb
+      await sb.from('thumbs').upsert({
+        profile_id: currentProfile.id, venue_id: venueId, direction
+      }, { onConflict: 'profile_id,venue_id' });
+    } else {
+      // New thumb
+      await sb.from('thumbs').insert({ profile_id: currentProfile.id, venue_id: venueId, direction });
+    }
+    myThumbs[venueId] = direction;
+    venueStats[venueId][countKey]++;
   }
 
   updateSocialUI(venueId);
 }
 
 function updateSocialUI(venueId) {
-  const stats = venueStats[venueId] || { checkins: 0, upvotes: 0 };
+  const stats = venueStats[venueId] || { checkins: 0, thumbs_up: 0, thumbs_down: 0 };
   const isCheckedIn = myCheckins.has(venueId);
-  const isUpvoted = myUpvotes.has(venueId);
+  const myThumb = myThumbs[venueId]; // 'up', 'down', or undefined
 
-  // Update popup social buttons
-  const popupCheckins = document.querySelectorAll(`[data-checkin-count="${venueId}"]`);
-  popupCheckins.forEach(el => el.textContent = stats.checkins || '');
-  const popupUpvotes = document.querySelectorAll(`[data-upvote-count="${venueId}"]`);
-  popupUpvotes.forEach(el => el.textContent = stats.upvotes || '');
+  // Update popup counts
+  document.querySelectorAll(`[data-checkin-count="${venueId}"]`)
+    .forEach(el => el.textContent = stats.checkins || '');
+  document.querySelectorAll(`[data-thumb-up-count="${venueId}"]`)
+    .forEach(el => el.textContent = stats.thumbs_up || '');
+  document.querySelectorAll(`[data-thumb-down-count="${venueId}"]`)
+    .forEach(el => el.textContent = stats.thumbs_down || '');
 
   // Toggle active state on popup buttons
-  const popupCheckinBtns = document.querySelectorAll(`.social-checkin[data-venue="${venueId}"]`);
-  popupCheckinBtns.forEach(btn => btn.classList.toggle('active', isCheckedIn));
-  const popupUpvoteBtns = document.querySelectorAll(`.social-upvote[data-venue="${venueId}"]`);
-  popupUpvoteBtns.forEach(btn => btn.classList.toggle('active', isUpvoted));
+  document.querySelectorAll(`.social-checkin[data-venue="${venueId}"]`)
+    .forEach(btn => btn.classList.toggle('active', isCheckedIn));
+  document.querySelectorAll(`.social-thumb-up[data-venue="${venueId}"]`)
+    .forEach(btn => btn.classList.toggle('active', myThumb === 'up'));
+  document.querySelectorAll(`.social-thumb-down[data-venue="${venueId}"]`)
+    .forEach(btn => btn.classList.toggle('active', myThumb === 'down'));
 
   // Update "people" text
   const peopleEls = document.querySelectorAll(`[data-checkin-people="${venueId}"]`);
@@ -2496,15 +2529,19 @@ function updateSocialUI(venueId) {
   // Update modal if it's showing this venue
   if (currentModalId === venueId) {
     const mcBtn = document.getElementById('modalCheckinBtn');
-    const muBtn = document.getElementById('modalUpvoteBtn');
+    const mtUp = document.getElementById('modalThumbUpBtn');
+    const mtDown = document.getElementById('modalThumbDownBtn');
     const mcCount = document.getElementById('modalCheckinCount');
-    const muCount = document.getElementById('modalUpvoteCount');
+    const mtUpCount = document.getElementById('modalThumbUpCount');
+    const mtDownCount = document.getElementById('modalThumbDownCount');
     const mPeople = document.getElementById('modalCheckinPeople');
 
     if (mcBtn) mcBtn.classList.toggle('active', isCheckedIn);
-    if (muBtn) muBtn.classList.toggle('active', isUpvoted);
+    if (mtUp) mtUp.classList.toggle('active', myThumb === 'up');
+    if (mtDown) mtDown.classList.toggle('active', myThumb === 'down');
     if (mcCount) mcCount.textContent = stats.checkins || '';
-    if (muCount) muCount.textContent = stats.upvotes || '';
+    if (mtUpCount) mtUpCount.textContent = stats.thumbs_up || '';
+    if (mtDownCount) mtDownCount.textContent = stats.thumbs_down || '';
     if (mPeople) mPeople.textContent = checkinText;
   }
 }
@@ -2512,11 +2549,10 @@ function updateSocialUI(venueId) {
 function handleRealtimeCheckin(payload) {
   const venueId = payload.new?.venue_id || payload.old?.venue_id;
   if (!venueId) return;
-  // Re-fetch stats for this venue (simple approach)
   loadVenueStats().then(() => updateSocialUI(venueId));
 }
 
-function handleRealtimeUpvote(payload) {
+function handleRealtimeThumb(payload) {
   const venueId = payload.new?.venue_id || payload.old?.venue_id;
   if (!venueId) return;
   loadVenueStats().then(() => updateSocialUI(venueId));

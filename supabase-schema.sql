@@ -59,26 +59,34 @@ create policy "Users can delete own check-ins"
   );
 
 
--- 3. UPVOTES
--- Tracks upvotes on venues
-create table public.upvotes (
+-- 3. THUMBS (up/down ratings)
+-- Tracks thumbs up or thumbs down on venues
+create table public.thumbs (
   id uuid primary key default gen_random_uuid(),
   profile_id uuid references public.profiles(id) on delete cascade,
   venue_id text not null,
+  direction text not null check (direction in ('up', 'down')),
   created_at timestamptz default now(),
-  unique(profile_id, venue_id)            -- one upvote per user per venue
+  unique(profile_id, venue_id)            -- one thumb per user per venue
 );
 
-alter table public.upvotes enable row level security;
+alter table public.thumbs enable row level security;
 
-create policy "Upvotes are viewable by everyone"
-  on public.upvotes for select using (true);
+create policy "Thumbs are viewable by everyone"
+  on public.thumbs for select using (true);
 
-create policy "Users can insert own upvotes"
-  on public.upvotes for insert with check (true);
+create policy "Users can insert own thumbs"
+  on public.thumbs for insert with check (true);
 
-create policy "Users can delete own upvotes"
-  on public.upvotes for delete using (
+create policy "Users can update own thumbs"
+  on public.thumbs for update using (
+    profile_id in (
+      select id from public.profiles where anon_id = current_setting('request.jwt.claims', true)::json->>'sub'
+    )
+  );
+
+create policy "Users can delete own thumbs"
+  on public.thumbs for delete using (
     profile_id in (
       select id from public.profiles where anon_id = current_setting('request.jwt.claims', true)::json->>'sub'
     )
@@ -162,16 +170,17 @@ create policy "Users can delete own lists"
 
 
 -- 6. AGGREGATION VIEW — venue stats
--- Fast access to check-in count + upvote count per venue
+-- Fast access to check-in count + thumbs up/down per venue
 create or replace view public.venue_stats as
 select
   v.venue_id,
   coalesce(c.checkin_count, 0) as checkin_count,
-  coalesce(u.upvote_count, 0) as upvote_count
+  coalesce(tu.thumbs_up_count, 0) as thumbs_up_count,
+  coalesce(td.thumbs_down_count, 0) as thumbs_down_count
 from (
   select distinct venue_id from public.checkins
   union
-  select distinct venue_id from public.upvotes
+  select distinct venue_id from public.thumbs
 ) v
 left join (
   select venue_id, count(*) as checkin_count
@@ -179,18 +188,24 @@ left join (
   group by venue_id
 ) c on v.venue_id = c.venue_id
 left join (
-  select venue_id, count(*) as upvote_count
-  from public.upvotes
+  select venue_id, count(*) as thumbs_up_count
+  from public.thumbs where direction = 'up'
   group by venue_id
-) u on v.venue_id = u.venue_id;
+) tu on v.venue_id = tu.venue_id
+left join (
+  select venue_id, count(*) as thumbs_down_count
+  from public.thumbs where direction = 'down'
+  group by venue_id
+) td on v.venue_id = td.venue_id;
 
 
--- 7. REALTIME — enable for check-ins and upvotes
--- (Enable in Supabase Dashboard > Database > Replication > toggle on for checkins, upvotes)
+-- 7. REALTIME — enable for check-ins and thumbs
+-- (Enable in Supabase Dashboard > Database > Replication > toggle on for checkins, thumbs)
 
 -- 8. INDEX for fast lookups
 create index idx_checkins_venue on public.checkins(venue_id);
-create index idx_upvotes_venue on public.upvotes(venue_id);
+create index idx_thumbs_venue on public.thumbs(venue_id);
+create index idx_thumbs_direction on public.thumbs(venue_id, direction);
 create index idx_user_saves_profile on public.user_saves(profile_id);
 create index idx_shared_lists_slug on public.shared_lists(slug);
 create index idx_profiles_anon on public.profiles(anon_id);
