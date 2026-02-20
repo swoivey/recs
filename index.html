@@ -77,31 +77,57 @@ body {
 }
 
 .sidebar-header {
-  padding:1rem 1.25rem 0.75rem;
+  padding:1.1rem 1.25rem 0.75rem;
   background:var(--cream);
   border-bottom:1px solid rgba(44,34,24,0.06);
   flex-shrink:0;
 }
 .sidebar-brand {
+  display:flex; flex-direction:column; gap:0.5rem;
+  margin-bottom:0.85rem;
+}
+.sidebar-brand-top {
   display:flex; justify-content:space-between; align-items:center;
-  margin-bottom:0.75rem; gap:1rem;
 }
 .sidebar-logo {
   font-family:'Gill Sans','Gill Sans MT',Lato,sans-serif; font-weight:400;
-  font-size:1.6rem; letter-spacing:-0.01em; color:var(--text); line-height:1;
+  font-size:1.85rem; letter-spacing:-0.01em; color:var(--text); line-height:1;
 }
 .sidebar-logo .wm-mark {
-  display:inline-block; width:0.45em; height:0.45em;
+  display:inline-block; width:0.4em; height:0.4em;
   background:var(--brass); border-radius:50%;
-  margin-left:0.15em; vertical-align:middle;
+  margin-left:0.12em; vertical-align:middle;
   position:relative; top:-0.05em;
 }
 .sidebar-subtitle {
-  font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase;
-  color:var(--terra); font-weight:600;
-  background:var(--terra-bg); display:inline-flex;
-  padding:0.2rem 0.5rem; border-radius:100px;
+  font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--text-3); font-weight:500;
+  padding:0; margin-top:0.15rem;
 }
+.sidebar-actions {
+  display:flex; gap:0.5rem; align-items:center;
+}
+.user-area {
+  display:flex; align-items:center; gap:0.5rem; flex-shrink:0;
+}
+.user-display {
+  display:flex; align-items:center; gap:0.35rem;
+  font-size:0.72rem; color:var(--text-2); font-weight:500;
+}
+.user-avatar {
+  font-size:1rem; line-height:1;
+}
+.user-name {
+  max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.user-logout {
+  width:28px; height:28px; border-radius:50%;
+  border:1.5px solid var(--sand); background:var(--white);
+  font-size:0.7rem; cursor:pointer; transition:all 0.2s;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--text-3);
+}
+.user-logout:hover { border-color:var(--terra); color:var(--terra); }
 .add-pill {
   padding:0.35rem 0.75rem; background:var(--terra); color:white;
   border:none; border-radius:100px; font-family:'DM Sans',sans-serif;
@@ -137,8 +163,7 @@ body {
 /* Filter chips */
 .filters { display:flex; flex-direction:column; gap:0.35rem; }
 .filter-row {
-  display:flex; gap:0.35rem; overflow-x:auto;
-  scrollbar-width:none; -ms-overflow-style:none;
+  display:flex; gap:0.35rem; flex-wrap:wrap;
   padding-bottom:2px;
 }
 .filter-row::-webkit-scrollbar { display:none; }
@@ -777,9 +802,11 @@ body {
   .sidebar-header {
     padding:0.5rem 1rem 0.4rem;
   }
-  .sidebar-brand { margin-bottom:0; gap:0.5rem; flex-wrap:wrap; }
-  .sidebar-logo { font-size:1rem; }
-  .sidebar-subtitle { font-size:0.55rem; padding:0.15rem 0.4rem; }
+  .sidebar-brand { margin-bottom:0; gap:0.35rem; }
+  .sidebar-brand-top { align-items:center; }
+  .sidebar-logo { font-size:1.15rem; }
+  .sidebar-subtitle { font-size:0.5rem; margin-top:0.05rem; }
+  .sidebar-actions { gap:0.4rem; }
   .add-pill { font-size:0.58rem; padding:0.25rem 0.55rem; }
 
   .search-wrap,
@@ -792,6 +819,11 @@ body {
   }
   .sidebar.filters-open .search-wrap { margin-top:0.5rem; }
   .sidebar.filters-open .filters { margin-top:0.35rem; }
+  .filter-row {
+    flex-wrap:nowrap; overflow-x:auto;
+    scrollbar-width:none; -ms-overflow-style:none;
+  }
+  .filter-row::-webkit-scrollbar { display:none; }
 
   /* Mobile filter toggle button */
   .mobile-filter-toggle {
@@ -1100,11 +1132,17 @@ body:has(.add-overlay.open) { overflow:hidden; }
   <div class="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-brand">
-        <div>
-          <div class="sidebar-logo">recs<span class="wm-mark"></span></div>
-          <div class="sidebar-subtitle">share what's worth seeing — <span id="venueCountInline">90</span> spots</div>
+        <div class="sidebar-brand-top">
+          <div>
+            <div class="sidebar-logo">recs<span class="wm-mark"></span></div>
+            <div class="sidebar-subtitle">share what's worth seeing — <span id="venueCountInline">90</span> spots</div>
+          </div>
+          <div class="user-area">
+            <div class="user-display" id="userDisplay" style="display:none"></div>
+            <button class="user-logout" onclick="handleLogout()" title="Log out">↗</button>
+          </div>
         </div>
-        <div style="display:flex;gap:0.6rem;align-items:center;flex-shrink:0">
+        <div class="sidebar-actions">
           <button class="mobile-filter-toggle" id="mobileFilterToggle" onclick="toggleMobileFilters()">🔍 Filter</button>
           <button class="add-pill" onclick="shareMyList()" style="background:var(--brass);border-color:var(--brass)">↗ Share List</button>
           <button class="add-pill" onclick="openAddPlace()">+ Add Place</button>
@@ -2367,29 +2405,42 @@ async function initSupabase() {
   try {
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Get or create anonymous session
-    let anonId = localStorage.getItem('recs-anon-id');
-    if (!anonId) {
-      anonId = crypto.randomUUID();
-      localStorage.setItem('recs-anon-id', anonId);
+    // Check auth session — redirect to login if not authenticated
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      window.location.href = 'login.html';
+      return;
     }
 
-    // Get or create profile
+    const user = session.user;
+
+    // Get or create profile linked to auth user
     let { data: profile } = await sb
       .from('profiles')
       .select('*')
-      .eq('anon_id', anonId)
+      .eq('id', user.id)
       .single();
 
     if (!profile) {
+      const displayName = user.user_metadata?.display_name
+        || user.user_metadata?.full_name
+        || user.email?.split('@')[0]
+        || 'User';
       const { data: newProfile } = await sb
         .from('profiles')
-        .insert({ anon_id: anonId })
+        .insert({
+          id: user.id,
+          email: user.email,
+          display_name: displayName
+        })
         .select()
         .single();
       profile = newProfile;
     }
     currentProfile = profile;
+
+    // Show user info in sidebar
+    updateUserDisplay();
 
     // Load all venue stats
     await loadVenueStats();
@@ -2405,6 +2456,23 @@ async function initSupabase() {
   } catch (err) {
     console.warn('[recs] Supabase init failed:', err);
   }
+}
+
+function updateUserDisplay() {
+  if (!currentProfile) return;
+  const el = document.getElementById('userDisplay');
+  if (el) {
+    const name = currentProfile.display_name || 'User';
+    const emoji = currentProfile.avatar_emoji || '🙂';
+    el.innerHTML = `<span class="user-avatar">${emoji}</span><span class="user-name">${name}</span>`;
+    el.style.display = 'flex';
+  }
+}
+
+async function handleLogout() {
+  if (!sb) return;
+  await sb.auth.signOut();
+  window.location.href = 'login.html';
 }
 
 async function loadVenueStats() {
