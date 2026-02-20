@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>recs — Bali Guide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Lato:wght@400;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -48,14 +48,14 @@ body {
 
 /* Recs wordmark */
 .wm-text {
-  font-family:'Instrument Serif',Georgia,serif;
-  font-style:italic; font-weight:400;
-  letter-spacing:-0.03em; line-height:1;
+  font-family:'Gill Sans','Gill Sans MT',Lato,sans-serif;
+  font-weight:400; letter-spacing:-0.01em; line-height:1;
 }
 .wm-mark {
-  font-family:'Libre Baskerville',Georgia,serif;
-  font-size:0.28em; color:var(--brass);
-  vertical-align:super; margin-left:0.1em;
+  display:inline-block; width:0.22em; height:0.22em;
+  background:var(--brass); border-radius:50%;
+  margin-left:0.12em; vertical-align:middle;
+  position:relative; top:-0.05em;
 }
 
 /* ═══════════════════════════════════════
@@ -84,16 +84,17 @@ body {
 }
 .sidebar-brand {
   display:flex; justify-content:space-between; align-items:center;
-  margin-bottom:0.75rem;
+  margin-bottom:0.75rem; gap:1rem;
 }
 .sidebar-logo {
-  font-family:'Instrument Serif',Georgia,serif; font-style:italic; font-weight:400;
-  font-size:1.6rem; letter-spacing:-0.03em; color:var(--text); line-height:1;
+  font-family:'Gill Sans','Gill Sans MT',Lato,sans-serif; font-weight:400;
+  font-size:1.6rem; letter-spacing:-0.01em; color:var(--text); line-height:1;
 }
 .sidebar-logo .wm-mark {
-  font-family:'Libre Baskerville',Georgia,serif;
-  font-size:0.35em; color:var(--brass); font-style:normal;
-  vertical-align:super; margin-left:0.08em;
+  display:inline-block; width:0.45em; height:0.45em;
+  background:var(--brass); border-radius:50%;
+  margin-left:0.15em; vertical-align:middle;
+  position:relative; top:-0.05em;
 }
 .sidebar-subtitle {
   font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase;
@@ -433,7 +434,8 @@ body {
 .popup-note::before { content:'"'; }
 .popup-note::after { content:'"'; }
 .popup-actions {
-  display:flex; gap:0.4rem;
+  display:flex; gap:0.4rem; margin-top:0.65rem; padding-top:0.55rem;
+  border-top:1px solid var(--sand);
 }
 .popup-btn {
   flex:1; padding:0.5rem; border-radius:var(--radius-sm);
@@ -453,7 +455,7 @@ body {
 
 /* Social: Check-in + Thumbs */
 .social-row {
-  display:flex; gap:0.5rem; margin-top:0.75rem; padding-top:0.65rem;
+  display:flex; gap:0.5rem; margin-top:0.6rem; padding-top:0.55rem;
   border-top:1px solid var(--sand); align-items:center;
 }
 .social-btn {
@@ -775,10 +777,10 @@ body {
   .sidebar-header {
     padding:0.5rem 1rem 0.4rem;
   }
-  .sidebar-brand { margin-bottom:0; }
+  .sidebar-brand { margin-bottom:0; gap:0.5rem; flex-wrap:wrap; }
   .sidebar-logo { font-size:1rem; }
   .sidebar-subtitle { font-size:0.55rem; padding:0.15rem 0.4rem; }
-  .add-pill { font-size:0.6rem; padding:0.28rem 0.6rem; }
+  .add-pill { font-size:0.58rem; padding:0.25rem 0.55rem; }
 
   .search-wrap,
   .filters {
@@ -1099,10 +1101,10 @@ body:has(.add-overlay.open) { overflow:hidden; }
     <div class="sidebar-header">
       <div class="sidebar-brand">
         <div>
-          <div class="sidebar-logo">recs<span class="wm-mark">●</span></div>
+          <div class="sidebar-logo">recs<span class="wm-mark"></span></div>
           <div class="sidebar-subtitle">share what's worth seeing — <span id="venueCountInline">90</span> spots</div>
         </div>
-        <div style="display:flex;gap:0.4rem;align-items:center">
+        <div style="display:flex;gap:0.6rem;align-items:center;flex-shrink:0">
           <button class="mobile-filter-toggle" id="mobileFilterToggle" onclick="toggleMobileFilters()">🔍 Filter</button>
           <button class="add-pill" onclick="shareMyList()" style="background:var(--brass);border-color:var(--brass)">↗ Share List</button>
           <button class="add-pill" onclick="openAddPlace()">+ Add Place</button>
