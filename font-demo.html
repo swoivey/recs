@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>recs — Font Comparison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #1E3A2F;
+  --green-mid: #2D5142;
+  --ivory: #F7F3EC;
+  --ivory-dark: #EBE5D8;
+  --sand: #DDD6C8;
+  --white: #FEFCF7;
+  --ink: #0F1E18;
+  --text-2: #4A5D53;
+  --text-3: #7A9085;
+  --brass: #B8923A;
+  --brass-light: #D4A84B;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--ivory);
+  color: var(--ink);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding: 2rem 1.5rem 4rem;
+}
+.page-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+.page-header h1 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 2.4rem;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+}
+.page-header h1 span {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 0.3em;
+  color: var(--brass);
+  font-style: normal;
+  vertical-align: super;
+  margin-left: 0.08em;
+}
+.page-header p {
+  color: var(--text-2);
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+}
+.demos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+@media (max-width: 1100px) {
+  .demos { grid-template-columns: 1fr; max-width: 480px; }
+}
+
+.demo {
+  background: var(--white);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 2px 20px rgba(15,30,24,0.08);
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+  cursor: pointer;
+}
+.demo:hover { border-color: var(--brass); }
+.demo.selected { border-color: var(--green); box-shadow: 0 4px 30px rgba(30,58,47,0.15); }
+
+.demo-label {
+  padding: 1rem 1.25rem;
+  background: var(--green);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.demo-label h2 {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.demo-label .tag {
+  font-size: 0.7rem;
+  background: rgba(255,255,255,0.15);
+  padding: 0.2em 0.6em;
+  border-radius: 99px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ---- Mock sidebar ---- */
+.mock-sidebar {
+  padding: 1.25rem;
+  background: var(--ivory);
+}
+.mock-logo {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.5rem;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  margin-bottom: 0.15rem;
+}
+.mock-logo span {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 0.32em;
+  color: var(--brass);
+  font-style: normal;
+  vertical-align: super;
+  margin-left: 0.06em;
+}
+.mock-tagline {
+  font-size: 0.75rem;
+  color: var(--text-3);
+  margin-bottom: 1rem;
+}
+
+/* Search bar */
+.mock-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--white);
+  border: 1.5px solid var(--sand);
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.mock-search .icon { color: var(--text-3); font-size: 0.85rem; }
+.mock-search .placeholder { color: var(--text-3); font-size: 0.85rem; }
+
+/* Filter chips */
+.mock-chips {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.mock-chip {
+  padding: 0.3em 0.7em;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border: 1.5px solid var(--sand);
+  background: var(--white);
+  color: var(--text-2);
+}
+.mock-chip.active {
+  background: var(--green);
+  color: white;
+  border-color: var(--green);
+}
+
+/* Venue cards */
+.mock-card {
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--ivory-dark);
+}
+.mock-card:last-child { border-bottom: none; }
+.mock-card-img {
+  width: 60px; height: 60px;
+  border-radius: 8px;
+  background: var(--ivory-dark);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+.mock-card-info { flex: 1; min-width: 0; }
+.mock-card-name {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--ink);
+  margin-bottom: 0.15rem;
+  letter-spacing: -0.01em;
+}
+.mock-card-cat {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--text-3);
+  margin-bottom: 0.2rem;
+}
+.mock-card-desc {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mock-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--text-3);
+}
+.mock-stars { color: var(--brass); }
+.mock-heart { color: var(--brass); cursor: pointer; }
+
+/* Modal preview */
+.mock-modal {
+  margin: 1rem 1.25rem 1.25rem;
+  background: var(--white);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(15,30,24,0.06);
+}
+.mock-modal-hero {
+  height: 100px;
+  background: linear-gradient(135deg, var(--green) 0%, #3A6B5A 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+}
+.mock-modal-body {
+  padding: 1rem;
+}
+.mock-modal-name {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 1.2rem;
+  color: var(--ink);
+  margin-bottom: 0.1rem;
+}
+.mock-modal-cat {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--text-3);
+  margin-bottom: 0.5rem;
+}
+.mock-modal-desc {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  line-height: 1.55;
+  margin-bottom: 0.75rem;
+}
+.mock-modal-note {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  line-height: 1.5;
+  font-style: italic;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--green);
+  background: rgba(30,58,47,0.04);
+  border-radius: 0 8px 8px 0;
+}
+
+/* Font-specific overrides */
+.font-libre .mock-tagline,
+.font-libre .mock-search .placeholder,
+.font-libre .mock-chip,
+.font-libre .mock-card-cat,
+.font-libre .mock-card-desc,
+.font-libre .mock-card-meta,
+.font-libre .mock-modal-cat,
+.font-libre .mock-modal-desc,
+.font-libre .mock-modal-note {
+  font-family: 'Libre Baskerville', Georgia, serif;
+}
+
+.font-dm .mock-tagline,
+.font-dm .mock-search .placeholder,
+.font-dm .mock-chip,
+.font-dm .mock-card-cat,
+.font-dm .mock-card-desc,
+.font-dm .mock-card-meta,
+.font-dm .mock-modal-cat,
+.font-dm .mock-modal-desc,
+.font-dm .mock-modal-note {
+  font-family: 'DM Sans', sans-serif;
+}
+
+.font-inter .mock-tagline,
+.font-inter .mock-search .placeholder,
+.font-inter .mock-chip,
+.font-inter .mock-card-cat,
+.font-inter .mock-card-desc,
+.font-inter .mock-card-meta,
+.font-inter .mock-modal-cat,
+.font-inter .mock-modal-desc,
+.font-inter .mock-modal-note {
+  font-family: 'Inter', sans-serif;
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>recs<span>&#9679;</span></h1>
+  <p>Choose your preferred UI &amp; body font pairing. Logo &amp; venue names always use Instrument Serif.</p>
+</div>
+
+<div class="demos">
+
+  <!-- Option A: Libre Baskerville -->
+  <div class="demo font-libre" onclick="select(this)">
+    <div class="demo-label">
+      <h2>A &mdash; Libre Baskerville</h2>
+      <span class="tag">Serif</span>
+    </div>
+    <div class="mock-sidebar">
+      <div class="mock-logo">recs<span>&#9679;</span></div>
+      <div class="mock-tagline">share what's worth seeing &mdash; 90 spots</div>
+      <div class="mock-search">
+        <span class="icon">&#128269;</span>
+        <span class="placeholder">Search venues, regions...</span>
+      </div>
+      <div class="mock-chips">
+        <span class="mock-chip active">All</span>
+        <span class="mock-chip">&#127860; Restaurant</span>
+        <span class="mock-chip">&#127866; Bar</span>
+        <span class="mock-chip">&#9749; Caf&eacute;</span>
+        <span class="mock-chip">&#127958; Beach Club</span>
+      </div>
+      <div class="mock-card">
+        <div class="mock-card-img">&#127860;</div>
+        <div class="mock-card-info">
+          <div class="mock-card-name">Mason Bali</div>
+          <div class="mock-card-cat">Restaurant &bull; Canggu</div>
+          <div class="mock-card-desc">Modern Australian-Asian fusion in a gorgeous open-air setting. The burrata and the barramundi are must-orders.</div>
+          <div class="mock-card-meta">
+            <span class="mock-stars">&#9733;&#9733;&#9733;&#9733;&#9734;</span>
+            <span>4.2</span>
+            <span class="mock-heart">&#9825;</span>
+          </div>
+        </div>
+      </div>
+      <div class="mock-card">
+        <div class="mock-card-img">&#127866;</div>
+        <div class="mock-card-info">
+          <div class="mock-card-name">The Lawn</div>
+          <div class="mock-card-cat">Beach Club &bull; Canggu</div>
+          <div class="mock-card-desc">Iconic beachfront bar. Great sunset vibes, decent cocktails, solid DJ sets on weekends.</div>
+          <div class="mock-card-meta">
+            <span class="mock-stars">&#9733;&#9733;&#9733;&#9733;&#9734;</span>
+            <span>4.0</span>
+            <span class="mock-heart">&#9825;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-modal">
+      <div class="mock-modal-hero">&#127860;</div>
+      <div class="mock-modal-body">
+        <div class="mock-modal-name">Mason Bali</div>
+        <div class="mock-modal-cat">Restaurant &bull; Canggu</div>
+        <div class="mock-modal-desc">Modern Australian-Asian fusion in a gorgeous open-air setting. The burrata and the barramundi are must-orders. Beautiful interior with lush tropical gardens.</div>
+        <div class="mock-modal-note">"The brunch here is unreal. Get the ricotta hotcakes and the cold drip." &mdash; Harry</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option B: DM Sans -->
+  <div class="demo font-dm" onclick="select(this)">
+    <div class="demo-label">
+      <h2>B &mdash; DM Sans</h2>
+      <span class="tag">Current</span>
+    </div>
+    <div class="mock-sidebar">
+      <div class="mock-logo">recs<span>&#9679;</span></div>
+      <div class="mock-tagline">share what's worth seeing &mdash; 90 spots</div>
+      <div class="mock-search">
+        <span class="icon">&#128269;</span>
+        <span class="placeholder">Search venues, regions...</span>
+      </div>
+      <div class="mock-chips">
+        <span class="mock-chip active">All</span>
+        <span class="mock-chip">&#127860; Restaurant</span>
+        <span class="mock-chip">&#127866; Bar</span>
+        <span class="mock-chip">&#9749; Caf&eacute;</span>
+        <span class="mock-chip">&#127958; Beach Club</span>
+      </div>
+      <div class="mock-card">
+        <div class="mock-card-img">&#127860;</div>
+        <div class="mock-card-info">
+          <div class="mock-card-name">Mason Bali</div>
+          <div class="mock-card-cat">Restaurant &bull; Canggu</div>
+          <div class="mock-card-desc">Modern Australian-Asian fusion in a gorgeous open-air setting. The burrata and the barramundi are must-orders.</div>
+          <div class="mock-card-meta">
+            <span class="mock-stars">&#9733;&#9733;&#9733;&#9733;&#9734;</span>
+            <span>4.2</span>
+            <span class="mock-heart">&#9825;</span>
+          </div>
+        </div>
+      </div>
+      <div class="mock-card">
+        <div class="mock-card-img">&#127866;</div>
+        <div class="mock-card-info">
+          <div class="mock-card-name">The Lawn</div>
+          <div class="mock-card-cat">Beach Club &bull; Canggu</div>
+          <div class="mock-card-desc">Iconic beachfront bar. Great sunset vibes, decent cocktails, solid DJ sets on weekends.</div>
+          <div class="mock-card-meta">
+            <span class="mock-stars">&#9733;&#9733;&#9733;&#9733;&#9734;</span>
+            <span>4.0</span>
+            <span class="mock-heart">&#9825;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-modal">
+      <div class="mock-modal-hero">&#127860;</div>
+      <div class="mock-modal-body">
+        <div class="mock-modal-name">Mason Bali</div>
+        <div class="mock-modal-cat">Restaurant &bull; Canggu</div>
+        <div class="mock-modal-desc">Modern Australian-Asian fusion in a gorgeous open-air setting. The burrata and the barramundi are must-orders. Beautiful interior with lush tropical gardens.</div>
+        <div class="mock-modal-note">"The brunch here is unreal. Get the ricotta hotcakes and the cold drip." &mdash; Harry</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option C: Inter -->
+  <div class="demo font-inter" onclick="select(this)">
+    <div class="demo-label">
+      <h2>C &mdash; Inter</h2>
+      <span class="tag">Modern</span>
+    </div>
+    <div class="mock-sidebar">
+      <div class="mock-logo">recs<span>&#9679;</span></div>
+      <div class="mock-tagline">share what's worth seeing &mdash; 90 spots</div>
+      <div class="mock-search">
+        <span class="icon">&#128269;</span>
+        <span class="placeholder">Search venues, regions...</span>
+      </div>
+      <div class="mock-chips">
+        <span class="mock-chip active">All</span>
+        <span class="mock-chip">&#127860; Restaurant</span>
+        <span class="mock-chip">&#127866; Bar</span>
+        <span class="mock-chip">&#9749; Caf&eacute;</span>
+        <span class="mock-chip">&#127958; Beach Club</span>
+      </div>
+      <div class="mock-card">
+        <div class="mock-card-img">&#127860;</div>
+        <div class="mock-card-info">
+          <div class="mock-card-name">Mason Bali</div>
+          <div class="mock-card-cat">Restaurant &bull; Canggu</div>
+          <div class="mock-card-desc">Modern Australian-Asian fusion in a gorgeous open-air setting. The burrata and the barramundi are must-orders.</div>
+          <div class="mock-card-meta">
+            <span class="mock-stars">&#9733;&#9733;&#9733;&#9733;&#9734;</span>
+            <span>4.2</span>
+            <span class="mock-heart">&#9825;</span>
+          </div>
+        </div>
+      </div>
+      <div class="mock-card">
+        <div class="mock-card-img">&#127866;</div>
+        <div class="mock-card-info">
+          <div class="mock-card-name">The Lawn</div>
+          <div class="mock-card-cat">Beach Club &bull; Canggu</div>
+          <div class="mock-card-desc">Iconic beachfront bar. Great sunset vibes, decent cocktails, solid DJ sets on weekends.</div>
+          <div class="mock-card-meta">
+            <span class="mock-stars">&#9733;&#9733;&#9733;&#9733;&#9734;</span>
+            <span>4.0</span>
+            <span class="mock-heart">&#9825;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-modal">
+      <div class="mock-modal-hero">&#127860;</div>
+      <div class="mock-modal-body">
+        <div class="mock-modal-name">Mason Bali</div>
+        <div class="mock-modal-cat">Restaurant &bull; Canggu</div>
+        <div class="mock-modal-desc">Modern Australian-Asian fusion in a gorgeous open-air setting. The burrata and the barramundi are must-orders. Beautiful interior with lush tropical gardens.</div>
+        <div class="mock-modal-note">"The brunch here is unreal. Get the ricotta hotcakes and the cold drip." &mdash; Harry</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function select(el) {
+  document.querySelectorAll('.demo').forEach(d => d.classList.remove('selected'));
+  el.classList.add('selected');
+}
+</script>
+</body>
+</html>
