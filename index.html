@@ -2340,7 +2340,7 @@ document.addEventListener('keydown', e => {
 const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
 const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
 
-let supabase = null;
+let sb = null;  // Supabase client instance (named 'sb' to avoid conflict with CDN global)
 let currentProfile = null;
 let venueStats = {};       // { venueId: { checkins: N, upvotes: N } }
 let myCheckins = new Set(); // venue IDs I've checked in to
@@ -2354,7 +2354,7 @@ async function initSupabase() {
   }
 
   try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Get or create anonymous session
     let anonId = localStorage.getItem('recs-anon-id');
@@ -2364,14 +2364,14 @@ async function initSupabase() {
     }
 
     // Get or create profile
-    let { data: profile } = await supabase
+    let { data: profile } = await sb
       .from('profiles')
       .select('*')
       .eq('anon_id', anonId)
       .single();
 
     if (!profile) {
-      const { data: newProfile } = await supabase
+      const { data: newProfile } = await sb
         .from('profiles')
         .insert({ anon_id: anonId })
         .select()
@@ -2385,7 +2385,7 @@ async function initSupabase() {
     await loadMyActions();
 
     // Subscribe to realtime changes
-    supabase.channel('social')
+    sb.channel('social')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins' }, handleRealtimeCheckin)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'upvotes' }, handleRealtimeUpvote)
       .subscribe();
@@ -2397,8 +2397,8 @@ async function initSupabase() {
 }
 
 async function loadVenueStats() {
-  if (!supabase) return;
-  const { data: stats } = await supabase.from('venue_stats').select('*');
+  if (!sb) return;
+  const { data: stats } = await sb.from('venue_stats').select('*');
   venueStats = {};
   (stats || []).forEach(s => {
     venueStats[s.venue_id] = { checkins: s.checkin_count, upvotes: s.upvote_count };
@@ -2406,15 +2406,15 @@ async function loadVenueStats() {
 }
 
 async function loadMyActions() {
-  if (!supabase || !currentProfile) return;
+  if (!sb || !currentProfile) return;
 
-  const { data: checkins } = await supabase
+  const { data: checkins } = await sb
     .from('checkins')
     .select('venue_id')
     .eq('profile_id', currentProfile.id);
   myCheckins = new Set((checkins || []).map(c => c.venue_id));
 
-  const { data: upvotes } = await supabase
+  const { data: upvotes } = await sb
     .from('upvotes')
     .select('venue_id')
     .eq('profile_id', currentProfile.id);
@@ -2422,7 +2422,7 @@ async function loadMyActions() {
 }
 
 async function toggleCheckin(venueId) {
-  if (!supabase || !currentProfile) {
+  if (!sb || !currentProfile) {
     showToast('Social features loading...');
     return;
   }
@@ -2432,13 +2432,13 @@ async function toggleCheckin(venueId) {
   if (myCheckins.has(venueId)) {
     // Remove check-in
     myCheckins.delete(venueId);
-    await supabase.from('checkins').delete().eq('profile_id', currentProfile.id).eq('venue_id', venueId);
+    await sb.from('checkins').delete().eq('profile_id', currentProfile.id).eq('venue_id', venueId);
     if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
     venueStats[venueId].checkins = Math.max(0, (venueStats[venueId].checkins || 0) - 1);
   } else {
     // Add check-in
     myCheckins.add(venueId);
-    await supabase.from('checkins').insert({ profile_id: currentProfile.id, venue_id: venueId });
+    await sb.from('checkins').insert({ profile_id: currentProfile.id, venue_id: venueId });
     if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
     venueStats[venueId].checkins = (venueStats[venueId].checkins || 0) + 1;
   }
@@ -2447,19 +2447,19 @@ async function toggleCheckin(venueId) {
 }
 
 async function toggleUpvote(venueId) {
-  if (!supabase || !currentProfile) {
+  if (!sb || !currentProfile) {
     showToast('Social features loading...');
     return;
   }
 
   if (myUpvotes.has(venueId)) {
     myUpvotes.delete(venueId);
-    await supabase.from('upvotes').delete().eq('profile_id', currentProfile.id).eq('venue_id', venueId);
+    await sb.from('upvotes').delete().eq('profile_id', currentProfile.id).eq('venue_id', venueId);
     if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
     venueStats[venueId].upvotes = Math.max(0, (venueStats[venueId].upvotes || 0) - 1);
   } else {
     myUpvotes.add(venueId);
-    await supabase.from('upvotes').insert({ profile_id: currentProfile.id, venue_id: venueId });
+    await sb.from('upvotes').insert({ profile_id: currentProfile.id, venue_id: venueId });
     if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
     venueStats[venueId].upvotes = (venueStats[venueId].upvotes || 0) + 1;
   }
@@ -2524,13 +2524,13 @@ function handleRealtimeUpvote(payload) {
 
 // Update social UI when a popup opens (called from showMapPopup)
 function updatePopupSocial(venueId) {
-  if (!supabase) return;
+  if (!sb) return;
   updateSocialUI(venueId);
 }
 
 // Update social UI when modal opens (called from openModal)
 function updateModalSocial(venueId) {
-  if (!supabase) return;
+  if (!sb) return;
   updateSocialUI(venueId);
 }
 
@@ -2539,13 +2539,13 @@ function updateModalSocial(venueId) {
 // ═══════════════════════════════════════
 
 async function createSharedList(title, description, venueIds) {
-  if (!supabase || !currentProfile) {
+  if (!sb || !currentProfile) {
     showToast('Please wait for social features to load');
     return null;
   }
 
   const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-  const { data, error } = await supabase
+  const { data, error } = await sb
     .from('shared_lists')
     .insert({
       profile_id: currentProfile.id,
@@ -2568,8 +2568,8 @@ async function createSharedList(title, description, venueIds) {
 }
 
 async function loadSharedList(slug) {
-  if (!supabase) return null;
-  const { data } = await supabase
+  if (!sb) return null;
+  const { data } = await sb
     .from('shared_lists')
     .select('*')
     .eq('slug', slug)
@@ -2603,7 +2603,7 @@ function shareMyList() {
 async function checkSharedListParam() {
   const params = new URLSearchParams(location.search);
   const listSlug = params.get('list');
-  if (!listSlug || !supabase) return;
+  if (!listSlug || !sb) return;
 
   const list = await loadSharedList(listSlug);
   if (!list) {
