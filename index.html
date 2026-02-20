@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root {
   --terra: #1E3A2F;
@@ -449,6 +450,49 @@ body {
   background:white; border:1.5px solid var(--sand); color:var(--text);
 }
 .popup-btn-maps:hover { border-color:var(--terra); color:var(--terra); }
+
+/* Social: Check-in + Upvote */
+.social-row {
+  display:flex; gap:0.5rem; margin-top:0.5rem; align-items:center;
+}
+.social-btn {
+  display:inline-flex; align-items:center; gap:0.3rem;
+  padding:0.35rem 0.6rem; border-radius:99px;
+  font-family:'DM Sans',sans-serif; font-size:0.7rem; font-weight:600;
+  cursor:pointer; transition:all 0.2s; border:1.5px solid var(--sand);
+  background:var(--white); color:var(--text-2);
+}
+.social-btn:hover { border-color:var(--terra); color:var(--terra); }
+.social-btn.active { background:var(--terra); border-color:var(--terra); color:white; }
+.social-btn .social-icon { font-size:0.85rem; line-height:1; }
+.social-btn .social-count { font-variant-numeric:tabular-nums; }
+.social-checkin.active { background:var(--terra); border-color:var(--terra); }
+.social-upvote.active { background:var(--brass); border-color:var(--brass); }
+.social-people {
+  font-size:0.68rem; color:var(--text-3); line-height:1.3;
+  margin-left:0.25rem;
+}
+
+/* Modal social row */
+.modal-social-row {
+  display:flex; gap:0.6rem; padding:0.75rem 1.25rem;
+  border-top:1px solid rgba(44,34,24,0.04);
+  align-items:center;
+}
+.modal-social-btn {
+  display:inline-flex; align-items:center; gap:0.35rem;
+  padding:0.5rem 0.85rem; border-radius:99px;
+  font-family:'DM Sans',sans-serif; font-size:0.8rem; font-weight:600;
+  cursor:pointer; transition:all 0.2s; border:1.5px solid var(--sand);
+  background:var(--white); color:var(--text-2);
+}
+.modal-social-btn:hover { border-color:var(--terra); color:var(--terra); }
+.modal-social-btn.active { background:var(--terra); border-color:var(--terra); color:white; }
+.modal-social-btn .social-icon { font-size:1rem; }
+.modal-social-btn.social-upvote.active { background:var(--brass); border-color:var(--brass); }
+.modal-social-people {
+  font-size:0.78rem; color:var(--text-3); flex:1;
+}
 
 /* ═══════════════════════════════════════
    MODAL (Detail overlay)
@@ -1057,6 +1101,7 @@ body:has(.add-overlay.open) { overflow:hidden; }
         </div>
         <div style="display:flex;gap:0.4rem;align-items:center">
           <button class="mobile-filter-toggle" id="mobileFilterToggle" onclick="toggleMobileFilters()">🔍 Filter</button>
+          <button class="add-pill" onclick="shareMyList()" style="background:var(--brass);border-color:var(--brass)">↗ Share List</button>
           <button class="add-pill" onclick="openAddPlace()">+ Add Place</button>
         </div>
       </div>
@@ -1136,6 +1181,16 @@ body:has(.add-overlay.open) { overflow:hidden; }
         <div class="modal-section-label">Vibes</div>
         <div class="modal-tags-edit" id="modalTags"></div>
       </div>
+    </div>
+
+    <div class="modal-social-row" id="modalSocialRow">
+      <button class="modal-social-btn social-checkin" id="modalCheckinBtn" onclick="toggleCheckin(currentModalId)">
+        <span class="social-icon">📍</span><span class="social-label">Been Here</span><span class="social-count" id="modalCheckinCount">0</span>
+      </button>
+      <button class="modal-social-btn social-upvote" id="modalUpvoteBtn" onclick="toggleUpvote(currentModalId)">
+        <span class="social-icon">▲</span><span class="social-count" id="modalUpvoteCount">0</span>
+      </button>
+      <span class="modal-social-people" id="modalCheckinPeople"></span>
     </div>
 
     <div class="modal-actions">
@@ -1322,6 +1377,8 @@ function getVenue(id) {
 function getFilteredVenues() {
   return RECS_VENUES.filter(v => {
     const venue = getVenue(v.id);
+    // Shared list filter (from ?list= URL param)
+    if (window._sharedListFilter && !window._sharedListFilter.has(venue.id)) return false;
     if (filterSaved && !saved[venue.id]) return false;
     if (activeRegion !== 'all' && venue.region !== activeRegion) return false;
     if (activeCategory !== 'all' && venue.category !== activeCategory) return false;
@@ -1686,6 +1743,15 @@ function showMapPopup(venue) {
       </div>
       <div class="popup-desc">${venue.description || ''}</div>
       ${venue.userNote ? `<div class="popup-note">${venue.userNote}</div>` : ''}
+      <div class="social-row" id="popupSocial-${venue.id}">
+        <button class="social-btn social-checkin" onclick="event.stopPropagation();toggleCheckin('${venue.id}')" data-venue="${venue.id}">
+          <span class="social-icon">📍</span><span class="social-label">Been Here</span><span class="social-count" data-checkin-count="${venue.id}">0</span>
+        </button>
+        <button class="social-btn social-upvote" onclick="event.stopPropagation();toggleUpvote('${venue.id}')" data-venue="${venue.id}">
+          <span class="social-icon">▲</span><span class="social-count" data-upvote-count="${venue.id}">0</span>
+        </button>
+        <span class="social-people" data-checkin-people="${venue.id}"></span>
+      </div>
       <div class="popup-actions">
         <button class="popup-btn popup-btn-detail" onclick="openModal('${venue.id}')">View Details</button>
         <a class="popup-btn popup-btn-maps" href="${venue.mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📍 Maps</a>
@@ -1710,6 +1776,9 @@ function showMapPopup(venue) {
     popup.style.opacity = '';
     requestAnimationFrame(() => popup.classList.add('open'));
   });
+
+  // Update social buttons for this venue
+  updatePopupSocial(venue.id);
 }
 
 function positionPopupAtMarker(venue) {
@@ -1953,6 +2022,9 @@ function openModal(id) {
   saveBottomBtn.classList.remove('saved-state');
 
   document.getElementById('modalOverlay').classList.add('open');
+
+  // Update social buttons for this venue
+  updateModalSocial(id);
 }
 
 function closeModal(e) {
@@ -2261,6 +2333,328 @@ document.addEventListener('keydown', e => {
 });
 
 // ═══════════════════════════════════════
+//  SUPABASE — Check-ins, Upvotes, Lists
+// ═══════════════════════════════════════
+
+// *** REPLACE THESE with your Supabase project values ***
+const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+
+let supabase = null;
+let currentProfile = null;
+let venueStats = {};       // { venueId: { checkins: N, upvotes: N } }
+let myCheckins = new Set(); // venue IDs I've checked in to
+let myUpvotes = new Set();  // venue IDs I've upvoted
+
+async function initSupabase() {
+  // Skip if credentials not configured yet
+  if (SUPABASE_URL.includes('YOUR_PROJECT')) {
+    console.log('[recs] Supabase not configured — social features disabled');
+    return;
+  }
+
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Get or create anonymous session
+    let anonId = localStorage.getItem('recs-anon-id');
+    if (!anonId) {
+      anonId = crypto.randomUUID();
+      localStorage.setItem('recs-anon-id', anonId);
+    }
+
+    // Get or create profile
+    let { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('anon_id', anonId)
+      .single();
+
+    if (!profile) {
+      const { data: newProfile } = await supabase
+        .from('profiles')
+        .insert({ anon_id: anonId })
+        .select()
+        .single();
+      profile = newProfile;
+    }
+    currentProfile = profile;
+
+    // Load all venue stats
+    await loadVenueStats();
+    await loadMyActions();
+
+    // Subscribe to realtime changes
+    supabase.channel('social')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins' }, handleRealtimeCheckin)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'upvotes' }, handleRealtimeUpvote)
+      .subscribe();
+
+    console.log('[recs] Supabase initialized, profile:', currentProfile.id);
+  } catch (err) {
+    console.warn('[recs] Supabase init failed:', err);
+  }
+}
+
+async function loadVenueStats() {
+  if (!supabase) return;
+  const { data: stats } = await supabase.from('venue_stats').select('*');
+  venueStats = {};
+  (stats || []).forEach(s => {
+    venueStats[s.venue_id] = { checkins: s.checkin_count, upvotes: s.upvote_count };
+  });
+}
+
+async function loadMyActions() {
+  if (!supabase || !currentProfile) return;
+
+  const { data: checkins } = await supabase
+    .from('checkins')
+    .select('venue_id')
+    .eq('profile_id', currentProfile.id);
+  myCheckins = new Set((checkins || []).map(c => c.venue_id));
+
+  const { data: upvotes } = await supabase
+    .from('upvotes')
+    .select('venue_id')
+    .eq('profile_id', currentProfile.id);
+  myUpvotes = new Set((upvotes || []).map(u => u.venue_id));
+}
+
+async function toggleCheckin(venueId) {
+  if (!supabase || !currentProfile) {
+    showToast('Social features loading...');
+    return;
+  }
+
+  const btn = document.querySelector(`.social-checkin[data-venue="${venueId}"], #modalCheckinBtn`);
+
+  if (myCheckins.has(venueId)) {
+    // Remove check-in
+    myCheckins.delete(venueId);
+    await supabase.from('checkins').delete().eq('profile_id', currentProfile.id).eq('venue_id', venueId);
+    if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
+    venueStats[venueId].checkins = Math.max(0, (venueStats[venueId].checkins || 0) - 1);
+  } else {
+    // Add check-in
+    myCheckins.add(venueId);
+    await supabase.from('checkins').insert({ profile_id: currentProfile.id, venue_id: venueId });
+    if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
+    venueStats[venueId].checkins = (venueStats[venueId].checkins || 0) + 1;
+  }
+
+  updateSocialUI(venueId);
+}
+
+async function toggleUpvote(venueId) {
+  if (!supabase || !currentProfile) {
+    showToast('Social features loading...');
+    return;
+  }
+
+  if (myUpvotes.has(venueId)) {
+    myUpvotes.delete(venueId);
+    await supabase.from('upvotes').delete().eq('profile_id', currentProfile.id).eq('venue_id', venueId);
+    if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
+    venueStats[venueId].upvotes = Math.max(0, (venueStats[venueId].upvotes || 0) - 1);
+  } else {
+    myUpvotes.add(venueId);
+    await supabase.from('upvotes').insert({ profile_id: currentProfile.id, venue_id: venueId });
+    if (!venueStats[venueId]) venueStats[venueId] = { checkins: 0, upvotes: 0 };
+    venueStats[venueId].upvotes = (venueStats[venueId].upvotes || 0) + 1;
+  }
+
+  updateSocialUI(venueId);
+}
+
+function updateSocialUI(venueId) {
+  const stats = venueStats[venueId] || { checkins: 0, upvotes: 0 };
+  const isCheckedIn = myCheckins.has(venueId);
+  const isUpvoted = myUpvotes.has(venueId);
+
+  // Update popup social buttons
+  const popupCheckins = document.querySelectorAll(`[data-checkin-count="${venueId}"]`);
+  popupCheckins.forEach(el => el.textContent = stats.checkins || '');
+  const popupUpvotes = document.querySelectorAll(`[data-upvote-count="${venueId}"]`);
+  popupUpvotes.forEach(el => el.textContent = stats.upvotes || '');
+
+  // Toggle active state on popup buttons
+  const popupCheckinBtns = document.querySelectorAll(`.social-checkin[data-venue="${venueId}"]`);
+  popupCheckinBtns.forEach(btn => btn.classList.toggle('active', isCheckedIn));
+  const popupUpvoteBtns = document.querySelectorAll(`.social-upvote[data-venue="${venueId}"]`);
+  popupUpvoteBtns.forEach(btn => btn.classList.toggle('active', isUpvoted));
+
+  // Update "people" text
+  const peopleEls = document.querySelectorAll(`[data-checkin-people="${venueId}"]`);
+  const checkinText = stats.checkins > 0
+    ? (isCheckedIn
+        ? (stats.checkins > 1 ? `You + ${stats.checkins - 1} been here` : 'You\'ve been here')
+        : `${stats.checkins} been here`)
+    : '';
+  peopleEls.forEach(el => el.textContent = checkinText);
+
+  // Update modal if it's showing this venue
+  if (currentModalId === venueId) {
+    const mcBtn = document.getElementById('modalCheckinBtn');
+    const muBtn = document.getElementById('modalUpvoteBtn');
+    const mcCount = document.getElementById('modalCheckinCount');
+    const muCount = document.getElementById('modalUpvoteCount');
+    const mPeople = document.getElementById('modalCheckinPeople');
+
+    if (mcBtn) mcBtn.classList.toggle('active', isCheckedIn);
+    if (muBtn) muBtn.classList.toggle('active', isUpvoted);
+    if (mcCount) mcCount.textContent = stats.checkins || '';
+    if (muCount) muCount.textContent = stats.upvotes || '';
+    if (mPeople) mPeople.textContent = checkinText;
+  }
+}
+
+function handleRealtimeCheckin(payload) {
+  const venueId = payload.new?.venue_id || payload.old?.venue_id;
+  if (!venueId) return;
+  // Re-fetch stats for this venue (simple approach)
+  loadVenueStats().then(() => updateSocialUI(venueId));
+}
+
+function handleRealtimeUpvote(payload) {
+  const venueId = payload.new?.venue_id || payload.old?.venue_id;
+  if (!venueId) return;
+  loadVenueStats().then(() => updateSocialUI(venueId));
+}
+
+// Update social UI when a popup opens (called from showMapPopup)
+function updatePopupSocial(venueId) {
+  if (!supabase) return;
+  updateSocialUI(venueId);
+}
+
+// Update social UI when modal opens (called from openModal)
+function updateModalSocial(venueId) {
+  if (!supabase) return;
+  updateSocialUI(venueId);
+}
+
+// ═══════════════════════════════════════
+//  SHAREABLE LISTS
+// ═══════════════════════════════════════
+
+async function createSharedList(title, description, venueIds) {
+  if (!supabase || !currentProfile) {
+    showToast('Please wait for social features to load');
+    return null;
+  }
+
+  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const { data, error } = await supabase
+    .from('shared_lists')
+    .insert({
+      profile_id: currentProfile.id,
+      slug,
+      title,
+      description,
+      venue_ids: venueIds,
+      is_public: true
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Failed to create list:', error);
+    showToast('Failed to create list');
+    return null;
+  }
+
+  return data;
+}
+
+async function loadSharedList(slug) {
+  if (!supabase) return null;
+  const { data } = await supabase
+    .from('shared_lists')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+  return data;
+}
+
+function shareMyList() {
+  const savedIds = JSON.parse(localStorage.getItem('recs-saved') || '[]');
+  if (savedIds.length === 0) {
+    showToast('Save some venues first to share your list!');
+    return;
+  }
+
+  const title = prompt('Name your list:', 'My Bali Picks');
+  if (!title) return;
+
+  createSharedList(title, '', savedIds).then(list => {
+    if (list) {
+      const url = `${location.origin}${location.pathname}?list=${list.slug}`;
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('List link copied! Share it with friends 🎉');
+      }).catch(() => {
+        showToast(`List created! Share: ${url}`);
+      });
+    }
+  });
+}
+
+// Check for ?list= parameter on page load
+async function checkSharedListParam() {
+  const params = new URLSearchParams(location.search);
+  const listSlug = params.get('list');
+  if (!listSlug || !supabase) return;
+
+  const list = await loadSharedList(listSlug);
+  if (!list) {
+    showToast('List not found');
+    return;
+  }
+
+  // Filter to show only venues in this list
+  showToast(`Viewing: ${list.title}`);
+
+  // Apply filter: show only these venue IDs
+  const listVenueIds = new Set(list.venue_ids);
+  const allVenues = [...RECS_VENUES, ...userPlaces];
+  const filtered = allVenues.filter(v => listVenueIds.has(v.id));
+
+  // Show a banner
+  const banner = document.createElement('div');
+  banner.id = 'listBanner';
+  banner.style.cssText = `
+    position:fixed; top:0; left:0; right:0; z-index:600;
+    background:var(--terra); color:white; padding:0.6rem 1rem;
+    font-family:'DM Sans',sans-serif; font-size:0.85rem; font-weight:500;
+    display:flex; align-items:center; justify-content:space-between;
+  `;
+  banner.innerHTML = `
+    <span>📋 <strong>${list.title}</strong> — ${list.venue_ids.length} spots</span>
+    <button onclick="clearListFilter()" style="background:none;border:1px solid rgba(255,255,255,0.4);color:white;padding:0.3rem 0.8rem;border-radius:99px;font-size:0.75rem;cursor:pointer;font-weight:600;">Show All</button>
+  `;
+  document.body.appendChild(banner);
+  document.body.style.paddingTop = '42px';
+
+  // Filter the cards
+  activeFilter = null;
+  activeRegion = null;
+  searchTerm = '';
+  window._sharedListFilter = listVenueIds;
+  renderCards();
+  renderMarkers();
+}
+
+function clearListFilter() {
+  window._sharedListFilter = null;
+  const banner = document.getElementById('listBanner');
+  if (banner) banner.remove();
+  document.body.style.paddingTop = '';
+  history.replaceState(null, '', location.pathname);
+  renderCards();
+  renderMarkers();
+}
+
+// ═══════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════
 loadUserPlaces();
@@ -2269,6 +2663,9 @@ renderCards();
 renderLegend();
 renderRegionNav();
 initMap();
+initSupabase().then(() => {
+  checkSharedListParam();
+});
 </script>
 </body>
 </html>
